@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work week</title>
+<style>
+  :root {
+    color-scheme: light;
+    --fg: var(--foreground, #1c1c1a);
+    --dim: var(--muted-foreground, #6b6b66);
+    --line: var(--border, #dcdcd6);
+    --soft: var(--muted, #f2f2ee);
+    --acc: var(--brand, #2f6fde);
+    --bg: var(--background, #fff);
+    --r: var(--radius, 6px);
+    --c1: var(--chart-1, #3b7dd8); --c2: var(--chart-2, #d9793b); --c3: var(--chart-3, #3ba272);
+    --c4: var(--chart-4, #a05bc4); --c5: var(--chart-5, #c9a227); --c6: var(--chart-6, #d0527a);
+    --c7: #5f9ea0; --c8: #8a8a84;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--fg); font: 14px/1.4 var(--font-sans, system-ui, sans-serif); }
+  #app { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; height: 680px; }
+  body.alone { background: var(--bg); }
+  body.alone #app { height: 100vh; padding: 16px 20px; }
+  h1 { font-size: 17px; margin: 0; }
+  p { margin: 0; }
+  .dim { color: var(--dim); }
+  .small { font-size: 12.5px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  button { font: inherit; color: inherit; background: none; border: 1px solid var(--line); border-radius: var(--r); padding: 2px 9px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  :focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+  kbd { font: 11px var(--font-mono, ui-monospace, monospace); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+  header { display: flex; flex-direction: column; gap: 8px; }
+  .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+
+  #body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 16px; min-height: 0; }
+  #left, #panel { min-height: 0; overflow-y: auto; }
+  #left { display: flex; flex-direction: column; gap: 8px; }
+  #panel { border-left: 1px solid var(--line); padding-left: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .lane { position: relative; height: 20px; background: var(--soft); border-radius: 3px; flex: none; }
+  .block { position: absolute; top: 2px; bottom: 2px; border: 0; padding: 0; border-radius: 2px; min-width: 3px; cursor: pointer; }
+  .block.sel { outline: 2px solid var(--fg); outline-offset: 1px; z-index: 1; }
+  .hours { position: relative; height: 13px; flex: none; }
+  .hours span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--dim); }
+  .weekgrid { display: grid; grid-template-columns: 74px 1fr; gap: 6px 8px; align-items: center; }
+  .weekgrid button.day { border: 0; padding: 0; text-align: left; }
+  .weekgrid button.day.cur { font-weight: 600; }
+
+  .task { display: grid; grid-template-columns: 4px 44px minmax(0, 1fr) auto; gap: 2px 10px; padding: 7px 6px 7px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .task.sel { background: var(--soft); }
+  .stripe { grid-row: 1 / span 3; border-radius: 2px; }
+  .time { grid-row: 1 / span 3; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12.5px; padding-top: 1px; }
+  .name { font-weight: 600; }
+  .mins { color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12.5px; }
+  .sub { grid-column: 3 / span 2; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tags { grid-column: 3 / span 2; display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; margin-top: 2px; }
+  .chip { border: 1px solid var(--line); border-radius: 3px; padding: 0 6px; white-space: nowrap; }
+  .chip.claude { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .chip.claude-checked { border-color: var(--fg); border-width: 1.5px; }
+  .chip.claude-checked::after { content: " ✓"; }
+  .chip.job { background: var(--soft); font-style: italic; }
+  .chip.written { border-style: dashed; color: var(--dim); }
+  .est::before { content: "~"; }
+
+  #panel h2 { font-size: 16px; margin: 0; }
+  #panel h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); margin: 0 0 3px; font-weight: 600; }
+  #panel section { display: flex; flex-direction: column; }
+  #panel ol, #panel ul { margin: 0; padding-left: 18px; }
+  #panel li { margin-bottom: 2px; }
+  .who { font-weight: 600; }
+  .ev { font: 12px/1.4 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; list-style: none; margin-left: -18px; }
+  a { color: var(--acc); }
+  footer { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; }
+
+  @media (max-width: 700px) {
+    #app, body.alone #app { height: auto; }
+    #body { grid-template-columns: 1fr; }
+    #left, #panel { overflow: visible; }
+    #panel { border-left: 0; border-top: 1px solid var(--line); padding: 12px 0 0; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="top">
+      <h1 id="title">Work week</h1>
+      <span class="dim small" id="cover"></span>
+    </div>
+    <div class="row" id="days"></div>
+  </header>
+  <div id="body">
+    <div id="left"></div>
+    <aside id="panel" aria-live="polite"></aside>
+  </div>
+  <footer class="small dim">
+    <span class="row">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> task</span>
+      <span><kbd>←</kbd> <kbd>→</kbd> day</span>
+      <span><kbd>W</kbd> week</span>
+      <span><kbd>E</kbd> evidence</span>
+      <button id="srcbtn">What this was built from</button>
+    </span>
+    <span class="row">
+      <span class="chip">by hand</span>
+      <span class="chip claude">by Claude</span>
+      <span class="chip claude-checked">Claude, checked</span>
+      <span class="chip job">scheduled job</span>
+      <span class="chip written">written down?</span>
+    </span>
+  </footer>
+</div>
+
+<script type="application/json" id="baked">null</script>
+<script>
+const D = JSON.parse(document.getElementById('baked').textContent);
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const mins = m => m >= 60 ? Math.floor(m / 60) + 'h ' + String(Math.round(m % 60)).padStart(2, '0') : Math.round(m) + ' min';
+const toMin = s => { const [h, m] = String(s || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
+const BY = { hand: 'by hand', claude: 'by Claude', 'claude-checked': 'by Claude, then checked by the person', job: 'by a scheduled job' };
+const WHO = { me: 'Person', claude: 'Claude', job: 'Scheduled job' };
+if (window.top === window) document.body.classList.add('alone');
+
+if (!D) { $('left').textContent = 'No data yet.'; }
+else {
+  const cats = D.categories || [];
+  const color = id => { const i = cats.findIndex(c => c.id === id); return 'var(--c' + ((i < 0 ? 7 : i % 8) + 1) + ')'; };
+  const catName = id => (cats.find(c => c.id === id) || {}).name || id || '';
+  const days = D.days;
+  const state = { day: 0, task: 0, week: false, evidence: false, sources: false };
+  const lo = Math.floor(Math.min(...days.flatMap(d => d.tasks.map(t => toMin(t.start)))) / 60) * 60;
+  const hi = Math.ceil(Math.max(...days.flatMap(d => d.tasks.map(t => toMin(t.start) + t.minutes))) / 60) * 60;
+  const dayLabel = d => new Date(d.date + 'T12:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const cur = () => days[state.day].tasks[state.task];
+
+  $('title').textContent = 'Work week' + (D.person ? ': ' + D.person : '') + (D.sample ? ' (sample data)' : '');
+
+  function lane(di) {
+    const l = el('div', 'lane');
+    days[di].tasks.forEach((t, ti) => {
+      const b = el('button', 'block' + (di === state.day && ti === state.task && !state.sources ? ' sel' : ''));
+      b.style.left = (toMin(t.start) - lo) / (hi - lo) * 100 + '%';
+      b.style.width = t.minutes / (hi - lo) * 100 + '%';
+      b.style.background = color(t.category);
+      b.setAttribute('aria-label', t.name + ', ' + t.start + ', ' + mins(t.minutes));
+      b.tabIndex = -1;
+      b.onclick = () => select(di, ti);
+      b.onmouseenter = () => drawPanel(t); b.onmouseleave = () => drawPanel();
+      l.append(b);
+    });
+    return l;
+  }
+  function hours() {
+    const h = el('div', 'hours');
+    for (let m = lo; m <= hi; m += (hi - lo > 600 ? 180 : 120)) { const s = el('span', null, m / 60 + ':00'); s.style.left = (m - lo) / (hi - lo) * 100 + '%'; if (m === lo) s.style.transform = 'none'; else if (m + (hi - lo > 600 ? 180 : 120) > hi && m === hi) s.style.transform = 'translateX(-100%)'; h.append(s); }
+    return h;
+  }
+  function drawDays() {
+    const box = $('days'); box.textContent = '';
+    days.forEach((d, i) => {
+      const b = el('button', null, dayLabel(d)); b.setAttribute('aria-pressed', !state.week && i === state.day);
+      b.onclick = () => { state.week = false; select(i, 0); }; box.append(b);
+    });
+    const w = el('button', null, 'Week'); w.setAttribute('aria-pressed', state.week);
+    w.onclick = () => { state.week = !state.week; draw(); }; box.append(w);
+    const d = days[state.day];
+    $('cover').textContent = state.week ? days.reduce((s, x) => s + x.tasks.length, 0) + ' tasks on ' + days.length + ' days'
+      : (d.hoursPlaced != null ? d.hoursPlaced + ' of ' + d.hoursSeen + ' hours placed on ' : '') + d.tasks.length + ' tasks';
+  }
+  function drawLeft() {
+    const left = $('left'); left.textContent = '';
+    if (state.week) {
+      const g = el('div', 'weekgrid');
+      g.append(el('span'), hours());
+      days.forEach((d, i) => {
+        const b = el('button', 'day small' + (i === state.day ? ' cur' : ''), dayLabel(d)); b.tabIndex = -1;
+        b.onclick = () => { state.week = false; select(i, 0); };
+        g.append(b, lane(i));
+      });
+      left.append(g);
+      const lg = el('div', 'row small dim');
+      cats.forEach(c => {
+        const m = days.flatMap(d => d.tasks).filter(t => t.category === c.id).reduce((s, t) => s + t.minutes, 0);
+        const s = el('span'); const dot = el('span', 'dot'); dot.style.background = color(c.id); s.append(dot, c.name + ' ' + mins(m)); s.style.marginRight = '8px'; lg.append(s);
+      });
+      left.append(lg);
+      return;
+    }
+    const d = days[state.day];
+    left.append(hours(), lane(state.day));
+    if (d.note) left.append(el('p', 'dim small', d.note));
+    const list = el('div');
+    d.tasks.forEach((t, ti) => {
+      const r = el('div', 'task' + (ti === state.task && !state.sources ? ' sel' : '')); r.dataset.i = ti;
+      const stripe = el('span', 'stripe'); stripe.style.background = color(t.category); stripe.title = catName(t.category);
+      const tags = el('div', 'tags');
+      (t.software || []).forEach(s => { const c = el('span', 'chip ' + (s.by || 'hand'), s.name); c.title = BY[s.by] || s.by || ''; tags.append(c); });
+      if (t.written && t.written.label) tags.append(el('span', 'chip written', t.written.label));
+      r.append(stripe, el('span', 'time', t.start), el('span', 'name', t.name + (t.times > 1 ? ' ×' + t.times : '')),
+        el('span', 'mins' + (/estimated|part/.test(t.minutesFrom || 'estimated') ? ' est' : ''), mins(t.minutes)), el('p', 'sub', t.summary), tags);
+      r.onclick = () => select(state.day, ti);
+      r.onmouseenter = () => drawPanel(t); r.onmouseleave = () => drawPanel();
+      list.append(r);
+    });
+    left.append(list);
+    const s = list.querySelector('.sel'); if (s) s.scrollIntoView({ block: 'nearest' });
+  }
+  function sec(title, node) {
+    const s = el('section'); s.append(el('h3', null, title));
+    typeof node === 'string' ? s.append(el('p', null, node)) : s.append(node); return s;
+  }
+  function drawPanel(hover) {
+    const p = $('panel'); p.textContent = '';
+    if (state.sources && !hover) {
+      p.append(el('h2', null, 'What this was built from'));
+      const ul = el('ul');
+      (D.sources || []).forEach(s => { const li = el('li'); li.append(el('span', 'who', s.name), ' (' + s.status + ')' + (s.note ? ': ' + s.note : '')); ul.append(li); });
+      p.append(ul); return;
+    }
+    const t = hover || cur(); if (!t) return;
+    const head = el('div');
+    head.append(el('h2', null, t.name), el('p', 'dim small', [catName(t.category), t.start, mins(t.minutes) + ' (' + (t.minutesFrom || 'estimated') + ')' + (t.elapsed ? ', ' + mins(+t.elapsed) + ' start to finish' : '') + (t.times > 1 ? ', ' + t.times + ' times' : '')].filter(Boolean).join(' · ')));
+    p.append(head, el('p', null, t.summary));
+    if (t.software && t.software.length) {
+      const ul = el('ul');
+      t.software.forEach(s => { const li = el('li'); li.append(el('span', 'who', s.name), ' ' + (BY[s.by] || s.by || '') + (s.note ? '. ' + s.note : '')); ul.append(li); });
+      p.append(sec('Software', ul));
+    }
+    if (t.person) p.append(sec('Where a person was involved', t.person));
+    if (t.written) {
+      const w = t.written, n = el('p');
+      n.append(el('span', 'who', w.label || ''));
+      if (w.title) { n.append(': '); if (w.url) { const a = el('a', null, w.title); a.href = w.url; a.target = '_blank'; a.rel = 'noopener'; n.append(a); } else n.append(w.title); }
+      if (w.date) n.append(' (written ' + w.date + ')');
+      if (w.gap) n.append('. ' + w.gap);
+      p.append(sec('Written down', n));
+    }
+    if (t.steps && t.steps.length) {
+      const ol = el('ol');
+      t.steps.forEach(s => { const li = el('li'); li.append(el('span', 'who', WHO[s.who] || s.who || ''), ' ' + s.what + (s.software ? ' · ' + s.software : '')); ol.append(li); });
+      p.append(sec('Steps (' + (t.stepsFrom || 'inferred') + ')', ol));
+    }
+    if (t.startedBy) p.append(sec('Started by', t.startedBy));
+    if (t.neededToKnow) p.append(sec('Needed to know, written nowhere', t.neededToKnow));
+    if (t.ended) p.append(sec('How it ended', t.ended));
+    (t.more || []).forEach(m => p.append(sec(m.label, m.text)));
+    if (t.toldByMe) p.append(el('p', 'dim small', 'Corrected by the person.'));
+    const b = el('button', null, (state.evidence ? 'Hide' : 'Show') + ' evidence (E)'); b.style.alignSelf = 'flex-start';
+    b.setAttribute('aria-expanded', state.evidence);
+    b.onclick = () => { state.evidence = !state.evidence; drawPanel(); };
+    p.append(b);
+    if (state.evidence) {
+      const ul = el('ul');
+      (t.evidence || []).forEach(e => ul.append(el('li', 'ev', [e.time, e.source, e.text].filter(Boolean).join('  '))));
+      p.append(sec('Seen in', ul));
+      if (t.unsure) p.append(sec("Couldn't tell", t.unsure));
+    }
+    p.scrollTop = 0;
+  }
+  function link() {
+    const h = '#' + (state.week ? 'week/' : '') + days[state.day].date + '/' + encodeURIComponent(cur().id);
+    try { history.replaceState(null, '', h); } catch (e) {}
+  }
+  function fromLink() {
+    const parts = decodeURIComponent(location.hash.slice(1)).split('/');
+    if (!parts[0]) return;
+    state.week = parts[0] === 'week'; if (state.week) parts.shift();
+    const di = days.findIndex(d => d.date === parts[0]); if (di < 0) return;
+    state.day = di; state.task = Math.max(0, days[di].tasks.findIndex(t => t.id === parts[1]));
+  }
+  function draw() { link(); drawDays(); drawLeft(); drawPanel(); }
+  function select(di, ti) { state.day = di; state.task = Math.max(0, Math.min(days[di].tasks.length - 1, ti)); state.sources = false; draw(); }
+  $('srcbtn').onclick = () => { state.sources = !state.sources; draw(); };
+
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key, n = days.length;
+    const task = d => select(state.day, state.task + d);
+    const day = d => { const i = Math.max(0, Math.min(n - 1, state.day + d)); if (i !== state.day) select(i, 0); };
+    let hit = true;
+    if (k === 'ArrowDown') state.week ? day(1) : task(1);
+    else if (k === 'ArrowUp') state.week ? day(-1) : task(-1);
+    else if (k === 'ArrowRight') state.week ? task(1) : day(1);
+    else if (k === 'ArrowLeft') state.week ? task(-1) : day(-1);
+    else if (k === 'w' || k === 'W') { state.week = !state.week; draw(); }
+    else if (k === 'e' || k === 'E') { state.evidence = !state.evidence; state.sources = false; draw(); }
+    else hit = false;
+    if (hit) e.preventDefault();
+  });
+  fromLink(); addEventListener('hashchange', () => { fromLink(); draw(); });
+  draw();
+}
+</script>
+</body>
+</html>
