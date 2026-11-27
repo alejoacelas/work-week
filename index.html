@@ -48,7 +48,7 @@
   .stripe { grid-row: 1 / span 3; border-radius: 2px; }
   .time { grid-row: 1 / span 3; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12.5px; padding-top: 1px; }
   .name { font-weight: 600; }
-  .mins { color: var(--dim); font-variant-numeric: tabular-nums; font-size: .9em; text-align: right; max-width: 22em; }
+  .mins { color: var(--dim); font-variant-numeric: tabular-nums; font-size: .9em; text-align: right; white-space: nowrap; }
   .name { min-width: 0; }
   .sub { grid-column: 3 / span 2; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .tags { grid-column: 3 / span 2; display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; margin-top: 2px; }
@@ -57,9 +57,11 @@
   .assistant { --k: var(--k-assistant); } .review { --k: var(--k-review); } .could, .me { --k: var(--k-me); } .waiting { --k: var(--k-waiting); }
   .tbar i, .sw { background: var(--k, var(--line)); }
   .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
-  .stages { display: flex; flex-direction: column; gap: 8px; }
-  .stage { border-left: 4px solid var(--k, var(--line)); padding: 1px 0 1px 10px; }
-  .stage .lab { display: block; font-size: 12px; color: var(--dim); }
+  .flow { display: grid; grid-template-columns: 4px 1fr; }
+  .flow i { background: var(--k, var(--line)); }
+  .flow i:first-child { border-radius: 2px 2px 0 0; } .flow i:nth-last-child(2) { border-radius: 0 0 2px 2px; }
+  .flow div { padding: .25em 0 .6em .8em; }
+  .flow small { display: block; color: var(--dim); font-size: .88em; }
   .help { margin: 0; padding-left: 18px; }
   .chip { border: 1px solid var(--line); border-radius: 3px; padding: 0 6px; white-space: nowrap; }
   .chip.claude { background: var(--fg); color: var(--bg); border-color: var(--fg); }
@@ -131,6 +133,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const mins = m => m >= 60 ? Math.floor(m / 60) + 'h ' + String(Math.round(m % 60)).padStart(2, '0') : Math.round(m) + ' min';
 const toMin = s => { const [h, m] = String(s || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
 const BY = { hand: 'by hand', claude: 'by Claude', 'claude-checked': 'by Claude, then checked by the person', job: 'by a scheduled job' };
+const OFTEN = ['daily', 'a few times a week', 'weekly', 'monthly', 'now and then', 'one-off'];
 const KIND = { assistant: 'Assistant', review: 'Assistant, then checked by the person', could: 'The person', me: 'The person', waiting: 'Waiting on someone else' };
 const LEVEL = { does: 'An assistant or scheduled job already does this', now: 'By hand. An assistant could do it with what is connected today', setup: 'By hand. An assistant could do it after some setup', person: 'Needs the person', '': '' };
 const level = st => st.who && st.who !== 'me' ? 'does' : (['now', 'setup', 'person'].includes(st.could) ? st.could : '');
@@ -210,7 +213,7 @@ else {
       const bar = el('div', 'tbar');
       (t.stages || []).forEach(st => { const i = el('i', KIND[st.kind] ? st.kind : ''); i.title = st.does; bar.append(i); });
       const right = el('span', 'mins');
-      right.append(el('span', /estimated|part/.test(t.minutesFrom || 'estimated') ? 'est' : '', mins(t.minutes)), t.repeats ? ' · ' + t.repeats : '');
+      right.append(el('span', /estimated|part/.test(t.minutesFrom || 'estimated') ? 'est' : '', mins(t.minutes)), OFTEN.includes(t.often) ? ' · ' + t.often : '');
       r.append(stripe, el('span', 'time', t.start), el('span', 'name', t.name + (t.times > 1 ? ' ×' + t.times : '')), right, el('p', 'sub', t.outcome || t.summary), bar);
       r.onclick = () => select(state.day, ti);
       list.append(r);
@@ -232,16 +235,12 @@ else {
     }
     const t = hover || cur(); if (!t) return;
     const head = el('div');
-    head.append(el('h2', null, t.name), el('p', 'dim small', [catName(t.category), t.start, mins(t.minutes) + ' (' + (t.minutesFrom || 'estimated') + ')' + (t.elapsed ? ', ' + mins(+t.elapsed) + ' start to finish' : '') + (t.times > 1 ? ', ' + t.times + ' times' : '')].filter(Boolean).join(' · ')));
+    head.append(el('h2', null, t.name), el('p', 'dim small', [catName(t.category), t.start, mins(t.minutes) + ' (' + (t.minutesFrom || 'estimated') + ')' + (t.elapsed ? ', ' + mins(+t.elapsed) + ' start to finish' : '') + (t.repeats ? ' · ' + t.repeats : '') + (t.times > 1 ? ', ' + t.times + ' times' : '')].filter(Boolean).join(' · ')));
     p.append(head, el('p', null, t.outcome || t.summary));
     if (t.stages && t.stages.length) {
-      const box = el('div', 'stages');
-      t.stages.forEach(st => {
-        const d = el('div', 'stage ' + (KIND[st.kind] ? st.kind : ''));
-        d.append(st.does, el('span', 'lab', [KIND[st.kind], st.note].filter(Boolean).join(': ')));
-        box.append(d);
-      });
-      const s2 = el('section'); s2.append(el('h3', null, 'How the work moves'), box); p.append(s2);
+      const f = el('div', 'flow');
+      t.stages.forEach(st => { const x = el('div'); x.append(st.does); if (st.note) x.append(el('small', null, st.note)); f.append(el('i', KIND[st.kind] ? st.kind : ''), x); });
+      const s2 = el('section'); s2.append(el('h3', null, 'How the work moves'), f); p.append(s2);
     }
     if (t.help && t.help.length) { const ul = el('ul', 'help'); t.help.forEach(h => ul.append(el('li', null, h))); p.append(sec('Ways to help', ul)); }
     if (t.written) {
