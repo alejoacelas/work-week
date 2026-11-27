@@ -9,10 +9,10 @@
     color-scheme: light;
     --fg: #1c1c1a; --dim: #6b6b66; --line: #dcdcd6; --soft: #f2f2ee; --acc: #2f6fde; --bg: #fff; --r: 6px;
     --c1: #3b7dd8; --c2: #d9793b; --c3: #3ba272; --c4: #a05bc4; --c5: #c9a227; --c6: #d0527a; --c7: #5f9ea0; --c8: #8a8a84;
-    --k-assistant: #b4b4ad; --k-review: #7da7e6; --k-could: #74c29c; --k-me: #e39088; --k-waiting: #e3c267;
+    --k-assistant: #3b7dd8; --k-review: #2a9d8f; --k-me: #e07b39; --k-waiting: #b9b9b3; --pw: clamp(320px, 38vw, 600px);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; color: var(--fg); background: var(--bg); font: 14px/1.4 system-ui, sans-serif; }
+  body { margin: 0; color: var(--fg); background: var(--bg); font: clamp(13px, 0.3vw + 11px, 16px)/1.4 system-ui, sans-serif; }
   #app { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; height: 680px; padding: 16px; border-radius: var(--r); }
   body.alone #app { height: 100vh; padding: 16px 20px; }
   h1 { font-size: 17px; margin: 0; }
@@ -27,10 +27,12 @@
   header { display: flex; flex-direction: column; gap: 8px; }
   .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 
-  #body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 470px); gap: 16px; min-height: 0; }
+  #body { display: grid; grid-template-columns: minmax(0, 1fr) 9px minmax(240px, min(var(--pw), 62%)); gap: 4px; min-height: 0; }
+  #grip { cursor: col-resize; border: 0; padding: 0; border-radius: 0; background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat; touch-action: none; }
+  #grip:hover, #grip.drag { background-size: 3px 100%; }
   #left, #panel { min-height: 0; overflow-y: auto; }
   #left { display: flex; flex-direction: column; gap: 8px; }
-  #panel { border-left: 1px solid var(--line); padding-left: 16px; display: flex; flex-direction: column; gap: 12px; }
+  #panel { padding-left: 10px; display: flex; flex-direction: column; gap: 12px; }
 
   .lane { position: relative; height: 20px; background: var(--soft); border-radius: 3px; flex: none; }
   .block { position: absolute; top: 2px; bottom: 2px; border: 0; padding: 0; border-radius: 2px; min-width: 3px; cursor: pointer; }
@@ -46,12 +48,13 @@
   .stripe { grid-row: 1 / span 3; border-radius: 2px; }
   .time { grid-row: 1 / span 3; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12.5px; padding-top: 1px; }
   .name { font-weight: 600; }
-  .mins { color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12.5px; }
+  .mins { color: var(--dim); font-variant-numeric: tabular-nums; font-size: .9em; text-align: right; max-width: 22em; }
+  .name { min-width: 0; }
   .sub { grid-column: 3 / span 2; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .tags { grid-column: 3 / span 2; display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; margin-top: 2px; }
-  .tbar { grid-column: 3 / span 2; display: flex; height: 4px; margin-top: 5px; max-width: 360px; border-radius: 2px; overflow: hidden; opacity: .85; }
+  .tbar { grid-column: 3 / span 2; display: flex; height: 4px; margin-top: 5px; width: min(100%, 22em); border-radius: 2px; overflow: hidden; }
   .tbar i { flex: 1; }
-  .assistant { --k: var(--k-assistant); } .review { --k: var(--k-review); } .could { --k: var(--k-could); } .me { --k: var(--k-me); } .waiting { --k: var(--k-waiting); }
+  .assistant { --k: var(--k-assistant); } .review { --k: var(--k-review); } .could, .me { --k: var(--k-me); } .waiting { --k: var(--k-waiting); }
   .tbar i, .sw { background: var(--k, var(--line)); }
   .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
   .stages { display: flex; flex-direction: column; gap: 8px; }
@@ -80,8 +83,13 @@
   @media (max-width: 700px) {
     #app, body.alone #app { height: auto; }
     #body { grid-template-columns: 1fr; }
+    #grip { display: none; }
+    .task { grid-template-columns: 4px 40px minmax(0, 1fr); }
+    .mins { grid-column: 3; text-align: left; }
+    .sub, .tbar { grid-column: 3; }
+    .hours span:last-child { display: none; }
     #left, #panel { overflow: visible; }
-    #panel { border-left: 0; border-top: 1px solid var(--line); padding: 12px 0 0; }
+    #panel { border-top: 1px solid var(--line); padding: 12px 0 0; }
   }
 </style>
 </head>
@@ -96,6 +104,7 @@
   </header>
   <div id="body">
     <div id="left"></div>
+    <button id="grip" aria-label="Drag to resize the side panel" tabindex="-1"></button>
     <aside id="panel" aria-live="polite"></aside>
   </div>
   <footer class="small dim">
@@ -106,10 +115,9 @@
       <button id="srcbtn">What this was built from</button>
     </span>
     <span class="row">
-      <span><span class="sw assistant"></span>assistant alone</span>
+      <span><span class="sw assistant"></span>assistant</span>
       <span><span class="sw review"></span>assistant, then checked</span>
-      <span><span class="sw could"></span>by hand, assistant could</span>
-      <span><span class="sw me"></span>needs the person</span>
+      <span><span class="sw me"></span>the person</span>
       <span><span class="sw waiting"></span>waiting on others</span>
     </span>
   </footer>
@@ -123,7 +131,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const mins = m => m >= 60 ? Math.floor(m / 60) + 'h ' + String(Math.round(m % 60)).padStart(2, '0') : Math.round(m) + ' min';
 const toMin = s => { const [h, m] = String(s || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
 const BY = { hand: 'by hand', claude: 'by Claude', 'claude-checked': 'by Claude, then checked by the person', job: 'by a scheduled job' };
-const KIND = { assistant: 'Assistant, on its own', review: 'Assistant, then checked by the person', could: 'By hand; an assistant could do it', me: 'Needs the person', waiting: 'Waiting on someone else' };
+const KIND = { assistant: 'Assistant', review: 'Assistant, then checked by the person', could: 'The person', me: 'The person', waiting: 'Waiting on someone else' };
 const LEVEL = { does: 'An assistant or scheduled job already does this', now: 'By hand. An assistant could do it with what is connected today', setup: 'By hand. An assistant could do it after some setup', person: 'Needs the person', '': '' };
 const level = st => st.who && st.who !== 'me' ? 'does' : (['now', 'setup', 'person'].includes(st.could) ? st.could : '');
 if (window.top === window) document.body.classList.add('alone');
@@ -230,7 +238,7 @@ else {
       const box = el('div', 'stages');
       t.stages.forEach(st => {
         const d = el('div', 'stage ' + (KIND[st.kind] ? st.kind : ''));
-        d.append(st.does + (st.software ? ' · ' : ''), el('span', 'who', st.software || ''), el('span', 'lab', [KIND[st.kind], st.note].filter(Boolean).join(': ')));
+        d.append(st.does, el('span', 'lab', [KIND[st.kind], st.note].filter(Boolean).join(': ')));
         box.append(d);
       });
       const s2 = el('section'); s2.append(el('h3', null, 'How the work moves'), box); p.append(s2);
@@ -292,6 +300,15 @@ else {
     if (hit) e.preventDefault();
   });
   fromLink(); addEventListener('hashchange', () => { fromLink(); draw(); });
+  const grip = $('grip'), body = $('body');
+  try { const w = localStorage.getItem('work-week-panel'); if (w) body.style.setProperty('--pw', w + 'px'); } catch (e) {}
+  let dragging = false;
+  const move = m => { if (!dragging) return; const w = Math.max(240, Math.min(body.clientWidth - 260, body.getBoundingClientRect().right - m.clientX)); body.style.setProperty('--pw', w + 'px'); };
+  const stop = () => { if (!dragging) return; dragging = false; grip.classList.remove('drag'); document.body.style.userSelect = ''; try { localStorage.setItem('work-week-panel', parseInt(body.style.getPropertyValue('--pw'))); } catch (e) {} };
+  const start = e => { dragging = true; grip.classList.add('drag'); document.body.style.userSelect = 'none'; e.preventDefault(); };
+  ['pointerdown', 'mousedown'].forEach(n => grip.addEventListener(n, start));
+  ['pointermove', 'mousemove'].forEach(n => addEventListener(n, move));
+  ['pointerup', 'mouseup'].forEach(n => addEventListener(n, stop));
   draw();
 }
 </script>
