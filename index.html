@@ -9,7 +9,7 @@
     color-scheme: light;
     --fg: #1c1c1a; --dim: #6b6b66; --line: #dcdcd6; --soft: #f2f2ee; --acc: #2f6fde; --bg: #fff; --r: 6px;
     --c1: #3b7dd8; --c2: #d9793b; --c3: #3ba272; --c4: #a05bc4; --c5: #c9a227; --c6: #d0527a; --c7: #5f9ea0; --c8: #8a8a84;
-    --does: #1c1c1a; --now: #2e9e6b; --setup: #e0a021; --person: #c9463d;
+    --k-assistant: #b4b4ad; --k-review: #7da7e6; --k-could: #74c29c; --k-me: #e39088; --k-waiting: #e3c267;
   }
   * { box-sizing: border-box; }
   body { margin: 0; color: var(--fg); background: var(--bg); font: 14px/1.4 system-ui, sans-serif; }
@@ -27,7 +27,7 @@
   header { display: flex; flex-direction: column; gap: 8px; }
   .top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 
-  #body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 16px; min-height: 0; }
+  #body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 470px); gap: 16px; min-height: 0; }
   #left, #panel { min-height: 0; overflow-y: auto; }
   #left { display: flex; flex-direction: column; gap: 8px; }
   #panel { border-left: 1px solid var(--line); padding-left: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -49,12 +49,15 @@
   .mins { color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12.5px; }
   .sub { grid-column: 3 / span 2; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .tags { grid-column: 3 / span 2; display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; margin-top: 2px; }
-  .strip { grid-column: 3 / span 2; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 3px; font-size: 12px; color: var(--dim); }
-  .pip { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; display: inline-block; }
-  .pip.does { background: var(--does); } .pip.now { background: var(--now); } .pip.setup { background: var(--setup); } .pip.person { background: var(--person); }
-  .steps { list-style: none; padding: 0 !important; display: flex; flex-direction: column; gap: 7px; }
-  .steps li { display: grid; grid-template-columns: 10px 1fr; gap: 0 8px; align-items: baseline; margin: 0 !important; }
-  .steps .why { grid-column: 2; color: var(--dim); font-size: 12.5px; }
+  .tbar { grid-column: 3 / span 2; display: flex; height: 4px; margin-top: 5px; max-width: 360px; border-radius: 2px; overflow: hidden; opacity: .85; }
+  .tbar i { flex: 1; }
+  .assistant { --k: var(--k-assistant); } .review { --k: var(--k-review); } .could { --k: var(--k-could); } .me { --k: var(--k-me); } .waiting { --k: var(--k-waiting); }
+  .tbar i, .sw { background: var(--k, var(--line)); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+  .stages { display: flex; flex-direction: column; gap: 8px; }
+  .stage { border-left: 4px solid var(--k, var(--line)); padding: 1px 0 1px 10px; }
+  .stage .lab { display: block; font-size: 12px; color: var(--dim); }
+  .help { margin: 0; padding-left: 18px; }
   .chip { border: 1px solid var(--line); border-radius: 3px; padding: 0 6px; white-space: nowrap; }
   .chip.claude { background: var(--fg); color: var(--bg); border-color: var(--fg); }
   .chip.claude-checked { border-color: var(--fg); border-width: 1.5px; }
@@ -100,14 +103,14 @@
       <span><kbd>↑</kbd> <kbd>↓</kbd> task</span>
       <span><kbd>←</kbd> <kbd>→</kbd> day</span>
       <span><kbd>W</kbd> week</span>
-      <span><kbd>E</kbd> evidence</span>
       <button id="srcbtn">What this was built from</button>
     </span>
     <span class="row">
-      <span><span class="pip does"></span> assistant does it</span>
-      <span><span class="pip now"></span> could today</span>
-      <span><span class="pip setup"></span> could after setup</span>
-      <span><span class="pip person"></span> needs the person</span>
+      <span><span class="sw assistant"></span>assistant alone</span>
+      <span><span class="sw review"></span>assistant, then checked</span>
+      <span><span class="sw could"></span>by hand, assistant could</span>
+      <span><span class="sw me"></span>needs the person</span>
+      <span><span class="sw waiting"></span>waiting on others</span>
     </span>
   </footer>
 </div>
@@ -120,6 +123,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const mins = m => m >= 60 ? Math.floor(m / 60) + 'h ' + String(Math.round(m % 60)).padStart(2, '0') : Math.round(m) + ' min';
 const toMin = s => { const [h, m] = String(s || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
 const BY = { hand: 'by hand', claude: 'by Claude', 'claude-checked': 'by Claude, then checked by the person', job: 'by a scheduled job' };
+const KIND = { assistant: 'Assistant, on its own', review: 'Assistant, then checked by the person', could: 'By hand; an assistant could do it', me: 'Needs the person', waiting: 'Waiting on someone else' };
 const LEVEL = { does: 'An assistant or scheduled job already does this', now: 'By hand. An assistant could do it with what is connected today', setup: 'By hand. An assistant could do it after some setup', person: 'Needs the person', '': '' };
 const level = st => st.who && st.who !== 'me' ? 'does' : (['now', 'setup', 'person'].includes(st.could) ? st.could : '');
 if (window.top === window) document.body.classList.add('alone');
@@ -195,11 +199,11 @@ else {
     d.tasks.forEach((t, ti) => {
       const r = el('div', 'task' + (ti === state.task && !state.sources ? ' sel' : '')); r.dataset.i = ti;
       const stripe = el('span', 'stripe'); stripe.style.background = color(t.category); stripe.title = catName(t.category);
-      const strip = el('div', 'strip');
-      (t.steps || []).forEach(st => { const d = el('span', 'pip ' + level(st)); d.title = st.what; strip.append(d); });
-      if (t.written && t.written.label) { const w = el('span', 'chip written', t.written.label); w.style.marginLeft = (t.steps || []).length ? '8px' : '0'; strip.append(w); }
-      r.append(stripe, el('span', 'time', t.start), el('span', 'name', t.name + (t.times > 1 ? ' ×' + t.times : '')),
-        el('span', 'mins' + (/estimated|part/.test(t.minutesFrom || 'estimated') ? ' est' : ''), mins(t.minutes)), el('p', 'sub', t.outcome || t.summary), strip);
+      const bar = el('div', 'tbar');
+      (t.stages || []).forEach(st => { const i = el('i', KIND[st.kind] ? st.kind : ''); i.title = st.does; bar.append(i); });
+      const right = el('span', 'mins');
+      right.append(el('span', /estimated|part/.test(t.minutesFrom || 'estimated') ? 'est' : '', mins(t.minutes)), t.repeats ? ' · ' + t.repeats : '');
+      r.append(stripe, el('span', 'time', t.start), el('span', 'name', t.name + (t.times > 1 ? ' ×' + t.times : '')), right, el('p', 'sub', t.outcome || t.summary), bar);
       r.onclick = () => select(state.day, ti);
       list.append(r);
     });
@@ -222,18 +226,16 @@ else {
     const head = el('div');
     head.append(el('h2', null, t.name), el('p', 'dim small', [catName(t.category), t.start, mins(t.minutes) + ' (' + (t.minutesFrom || 'estimated') + ')' + (t.elapsed ? ', ' + mins(+t.elapsed) + ' start to finish' : '') + (t.times > 1 ? ', ' + t.times + ' times' : '')].filter(Boolean).join(' · ')));
     p.append(head, el('p', null, t.outcome || t.summary));
-    if (t.steps && t.steps.length) {
-      const ol = el('ol', 'steps');
-      t.steps.forEach(st => {
-        const li = el('li'), lv = level(st), line = el('span');
-        line.append(st.what + (st.software ? ' · ' : ''), el('span', 'who', st.software || ''));
-        li.append(el('span', 'pip ' + lv), line);
-        const why = [LEVEL[lv], st.why].filter(Boolean).join(': ');
-        if (why) li.append(el('span', 'why', why));
-        ol.append(li);
+    if (t.stages && t.stages.length) {
+      const box = el('div', 'stages');
+      t.stages.forEach(st => {
+        const d = el('div', 'stage ' + (KIND[st.kind] ? st.kind : ''));
+        d.append(st.does + (st.software ? ' · ' : ''), el('span', 'who', st.software || ''), el('span', 'lab', [KIND[st.kind], st.note].filter(Boolean).join(': ')));
+        box.append(d);
       });
-      p.append(sec('Steps' + (t.stepsFrom === 'inferred' ? ' (inferred, not seen one by one)' : ''), ol));
+      const s2 = el('section'); s2.append(el('h3', null, 'How the work moves'), box); p.append(s2);
     }
+    if (t.help && t.help.length) { const ul = el('ul', 'help'); t.help.forEach(h => ul.append(el('li', null, h))); p.append(sec('Ways to help', ul)); }
     if (t.written) {
       const w = t.written, n = el('p');
       n.append(el('span', 'who', w.label || ''));
@@ -247,16 +249,17 @@ else {
     if (t.ended) p.append(sec('How it ended', t.ended));
     (t.more || []).forEach(m => p.append(sec(m.label, m.text)));
     if (t.toldByMe) p.append(el('p', 'dim small', 'Corrected by the person.'));
-    const b = el('button', null, (state.evidence ? 'Hide' : 'Show') + ' evidence (E)'); b.style.alignSelf = 'flex-start';
-    b.setAttribute('aria-expanded', state.evidence);
-    b.onclick = () => { state.evidence = !state.evidence; drawPanel(); };
-    p.append(b);
-    if (state.evidence) {
-      const ul = el('ul');
-      (t.evidence || []).forEach(e => ul.append(el('li', 'ev', [e.time, e.source, e.text].filter(Boolean).join('  '))));
-      p.append(sec('Seen in', ul));
-      if (t.unsure) p.append(sec("Couldn't tell", t.unsure));
+    if (t.happened && t.happened.length) {
+      const ol = el('ol');
+      t.happened.forEach(h => { const li = el('li'); li.append(el('span', 'who', ({ me: 'Person', assistant: 'Assistant', job: 'Job' })[h.who] || ''), ' ' + h.what + (h.software ? ' · ' + h.software : '')); ol.append(li); });
+      p.append(sec('What happened this time' + (t.happenedFrom === 'inferred' ? ' (inferred)' : ''), ol));
     }
+    if (t.evidence && t.evidence.length) {
+      const ul = el('ul');
+      t.evidence.forEach(e => ul.append(el('li', 'ev', [e.time, e.source, e.text].filter(Boolean).join('  '))));
+      p.append(sec('Seen in', ul));
+    }
+    if (t.unsure) p.append(sec("Couldn't tell", t.unsure));
     p.scrollTop = 0;
   }
   function link() {
@@ -285,7 +288,6 @@ else {
     else if (k === 'ArrowRight') state.week ? task(1) : day(1);
     else if (k === 'ArrowLeft') state.week ? task(-1) : day(-1);
     else if (k === 'w' || k === 'W') { state.week = !state.week; draw(); }
-    else if (k === 'e' || k === 'E') { state.evidence = !state.evidence; state.sources = false; draw(); }
     else hit = false;
     if (hit) e.preventDefault();
   });
